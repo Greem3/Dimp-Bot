@@ -1,2 +1,2 @@
 # Dimp Bot
- Dimp discord bot!
+Dimp discord bot!
