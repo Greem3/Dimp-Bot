@@ -1,11 +1,19 @@
 #   DISCORD
 import discord
-from discord import Embed as DiscordEmbed, Interaction, ui, File, SelectOption, SelectMenu, ChannelType
+from discord import Embed as DiscordEmbed, Interaction, ui, File, SelectOption, SelectMenu, ChannelType, ApplicationContext, User as DUser
 from discord.ext import commands
 from discord.ext.commands import CommandInvokeError
 from discord.ui import Button, View, Select, InputText, Modal
+import docx.document
+import scipy.constants
+import scipy.constants._constants
+import scipy.linalg
+import scipy.special
 from src.discord_funcs.embed_funcs import create_embed
 from src.discord_funcs.view_funcs import create_view
+#   ARCHIVOS
+import io
+from io import StringIO, BytesIO
 #   FUNCIONES
 from src.Exception_Classes.custom_exceptions import *
 from src.Dictionarys.dict_funcs import *
@@ -23,14 +31,16 @@ import marshal, pickle, json
 import re
 from re import Pattern, Match
 #   MATEMATICAS
-import math
-import decimal
-from decimal import Decimal, getcontext, ROUND_DOWN, ROUND_FLOOR, ROUND_HALF_DOWN, ROUND_HALF_UP, ROUND_UP
-#   EXTRA
-import datetime, time, asyncio, string
+import math, decimal, scipy
+from decimal import Decimal, getcontext, ROUND_HALF_UP
+from scipy.constants._constants import c, G, g, alpha, h, k, m_p, m_n
 #   THREADS
 import threading
 from threading import Thread
+#   WEB
+#! import page.start_page
+#   EXTRA
+import datetime, time, asyncio, string
 
 #region BOT INFO
 
@@ -139,6 +149,17 @@ async def on_command_error(ctx: discord.ApplicationContext, error: commands.Comm
 
     await ctx.send(f"An error occurred during the command: \n\n {error}")
 
+#region GLOBAL FUNCS
+
+async def isbot(user_id: DUser|int):
+    
+    user: DUser = user_id if isinstance(user_id, DUser|discord.Member) else await bot.fetch_user(user_id)
+    
+    if user.bot:
+        raise OnlyUsers()
+
+    return user
+
 #region HELP COMMAND
 
 class CustomHelpCommand(commands.HelpCommand):
@@ -187,22 +208,32 @@ class Administrators(commands.Cog, name="Bot Administrator Commands"):
         if bool(db.simple_select_data("administrators", "user_id", f'WHERE user_id = {user_id}', True)):
             raise AlreadyAdmin()
     
+    @commands.command(name="stop-bot", help="Stop the bot code")
+    async def stop_bot_Command(self, ctx: discord.ApplicationContext):
+        self.verify_super_admin(ctx.author.id)
+        await ctx.send("Bot closed.")
+        await bot.close()
+        import sys
+        sys.close(0)
+    
     @commands.command(name="new-admin", help="Add a new admin in the bot!")
     async def new_admin_Command(self, ctx: discord.ApplicationContext, user_id_or_member: discord.Member|int, super_admin: str = "False"):
         
-        id_user: int = user_id_or_member.id if isinstance(user_id_or_member, discord.Member) else user_id_or_member
         
         self.verify_super_admin(ctx.author.id)
-        self.already_admin(id_user)
+        user: DUser = await isbot(user_id_or_member)
+        self.already_admin(user)
         
         positive: tuple = ("Y", "TRUE", "T")
         
         super_admin: bool = True if positive.count(super_admin.upper()) > 0 else False
         
         db.simple_insert_data("administrators", (
-            id_user,
-            datetime.datetime.now().date(),
+            user.id,
             super_admin
+        ),
+        (
+            "user_id, super_admin"
         ))
         
         await ctx.send("New admin added")
@@ -210,43 +241,47 @@ class Administrators(commands.Cog, name="Bot Administrator Commands"):
     @commands.command(name='remove-admin', help="Remove a admin from the bot")
     async def remove_admin_Command(self, ctx: discord.ApplicationContext, user_id_or_member: discord.Member|int):
         
-        id_user: int = user_id_or_member.id if isinstance(user_id_or_member, discord.Member) else user_id_or_member
-        
-        user: discord.User = bot.fetch_user(id_user)
-        
-        if user.bot:
-            raise OnlyUsers()
         
         self.verify_super_admin(ctx.author.id)
-        self.verify_admin(id_user, False)
+        user: DUser = await isbot(user_id_or_member)
+        self.verify_admin(user.id, False)
         
-        answer: bool = bool(db.simple_select_data("administrators", "super_admin", f'WHERE user_id = {id_user}', True)[0])
+        answer: bool = bool(db.simple_select_data("administrators", "super_admin", f'WHERE user_id = {user.id}', True)[0])
         
         if answer:
             await ctx.send("This user is an super admin!")
             return
         
-        db.simple_delete_data("administrators", f'WHERE user_id = {id_user}')
+        db.simple_delete_data("administrators", f'WHERE user_id = {user.id}')
         
         await ctx.send("Admin removed")
         
     @commands.command(name="ban-user", help="Ban a user of the bot")
     async def ban_user_Command(self, ctx: discord.ApplicationContext, user_id_or_member: discord.Member|int, unban_days: int = None):
         
-        id_user: int = user_id_or_member.id if isinstance(user_id_or_member, discord.Member) else user_id_or_member
-        
         self.verify_admin(ctx.author.id)
-        self.already_banned(id_user)
+        user: DUser = await isbot(user_id_or_member)
+        self.already_banned(user.id)
         
         today_date: datetime.date = datetime.datetime.now().date()
         
         db.simple_insert_data("banned_users", (
-            id_user,
+            user.id,
             today_date,
             today_date + datetime.timedelta(days=unban_days) if unban_days != None else None
         ))
         
         await ctx.send("User banned")
+        
+    @commands.command(name="verify-problem", help="Verify is a problem have an real solution")
+    async def verify_problem_Command(self, ctx: discord.ApplicationContext, problem_id: int, *, difficulty: str):
+         
+        self.verify_admin(ctx.author.id)
+    
+    @commands.command(name="delete-problem", help="Delete an unopropiated problem")
+    async def delete_problem_Command(self, ctx: discord.ApplicationContext, problem_id: int, *, reason: str):
+        
+        self.verify_admin(ctx.author.id)
 
 #region USER COG
 
@@ -258,64 +293,80 @@ class User(commands.Cog, name="User Commands"):
     @commands.command(name="register", help="Save your user data")
     async def save_user_Command(self, ctx: discord.ApplicationContext):
         
-        if ctx.author.bot:
-            raise OnlyUsers()
-        
-        db.simple_insert_data("Users", (ctx.author.id,), "id")
+        db.simple_insert_data("Users", (
+            ctx.author.id,
+            datetime.datetime.now().date()
+        ), 
+        "id, create_date")
         
         await ctx.send("Your data has been saved! You can now use all the bot's commands")
         
     @commands.command(name="info", help="View your info or another user's info")
-    async def info_Command(self, ctx: discord.ApplicationContext, user: discord.Member|None = None):
+    async def info_Command(self, ctx: discord.ApplicationContext, user: discord.Member|None|int = None, what_see: str = "profile"):
         
-        user: discord.Member = ctx.author if user == None else user
+        see_options: tuple[str] = ("profile", "p", "problems", "pr", "solutions", "s", "clubs", "c")
         
-        if user.bot:
-            raise OnlyUsers()
+        what_see = what_see.lower()
+        if what_see not in see_options:
+            what_see = "profile"
         
-        user_info: tuple|None = db.simple_select_data("Users", "*", f'WHERE id = {user.id}', True)
+        user: discord.Member = ctx.author if user == None else user if isinstance(user, DUser|discord.Member) else await bot.fetch_user(user)
         
-        if user_info != None:
-            message = create_embed(
-                user.name,
-                user_info[2],
-                discord.Colour.blue(),
-                None,
-                (f"User Id: {user.id}", None),
-                [
-                    (
-                        "Points",
-                        user_info[7],
-                        False
-                    ),
-                    (
-                        "Verified Problems Published",
-                        user_info[3],
-                        True
-                    ),
-                    (
-                        "Unverified Problems Published",
-                        user_info[4],
-                        True
-                    ),
-                    (
-                        "Verified Problems Resolved",
-                        user_info[5],
-                        False
-                    ),
-                    (
-                        "Unverified Problems Resolved",
-                        user_info[6],
-                        True
-                    )
-                ],
-                thumbnail=user.avatar
-            )
+        await isbot(user)
+        
+        if what_see in ("profile", "p"):
+            user_info: tuple|None = db.simple_select_data("Users", "*", f'WHERE id = {user.id}', True)
             
-            await ctx.send(embed=message)
-            return
+            if user_info != None:
+                message = create_embed(
+                    user.name,
+                    user_info[2],
+                    discord.Colour.blue(),
+                    None,
+                    (f"User Id: {user.id}", None),
+                    [
+                        (
+                            "Points",
+                            user_info[7],
+                            False
+                        ),
+                        (
+                            "Verified Problems Published",
+                            user_info[3],
+                            True
+                        ),
+                        (
+                            "Unverified Problems Published",
+                            user_info[4],
+                            True
+                        ),
+                        (
+                            "Verified Problems Resolved",
+                            user_info[5],
+                            False
+                        ),
+                        (
+                            "Unverified Problems Resolved",
+                            user_info[6],
+                            True
+                        )
+                    ],
+                    thumbnail=user.avatar
+                )
+                
+                await ctx.send(embed=message)
+                return
         
-        await ctx.send("You haven't saved your information in the bot! Save it so you can see your stats, data, and use more commands" if user.id == ctx.author.id else "This user has not created their account in the bot")
+        if what_see in ("problems", "pr"):
+            pass
+        
+        if what_see in ("solutions", "s"):
+            pass
+        
+        if what_see in ("clubs", "c"):
+            pass
+        
+        await ctx.send("You don't have registered your information in the bot! Save it so you can see your stats, data, and use more commands" if user.id == ctx.author.id else "This user has not created their account in the bot")
     
     @commands.command(name="set-description", help="Allows you to change your user description")
     async def set_description_Command(self, ctx: discord.ApplicationContext, *, description: str):
@@ -392,37 +443,34 @@ class Problems(commands.Cog, name="Problems Commands"):
             await ctx.send(embed=message)
             return
         
-        if name_or_id.startswith('--'):
-            pass
-        
         problem_data = SearchBy("Problems", "*", name_or_id)
         
         if problem_data == None:
             await ctx.send("This problem don't exist!")
             return
         
-        creator: discord.Member = await bot.fetch_user(problem_data[4])
+        author: discord.Member = await bot.fetch_user(problem_data[1])
         
         message = create_embed(
-            problem_data[0],
+            problem_data[2],
             problem_data[3],
             discord.Colour.purple(),
-            (creator.name, creator.avatar),
-            (f'Problem ID: {problem_data[1]}', None),
+            (author.name, author.avatar),
+            (f'Problem ID: {problem_data[0]}', None),
             [
                 (
                     "Problem Type:",
-                    f'{problem_data[2]}',
+                    f'{problem_data[4]}',
                     True
                 ),
                 (
                     "Publish date:",
-                    problem_data[6],
+                    problem_data[5],
                     True
                 ),
                 (
                     "Difficulty:",
-                    problem_data[8] if problem_data[8] != None else "No Verified",
+                    problem_data[7],
                     True
                 ),
                 (
@@ -437,12 +485,12 @@ class Problems(commands.Cog, name="Problems Commands"):
                 ),
                 (
                     "Has Oficial Solution:",
-                    True if problem_data[5] != None else False,
+                    True if problem_data[8] != None else False,
                     True
                 ),
                 (
                     "Total Published Solutions:",
-                    problem_data[7],
+                    problem_data[6],
                     True
                 )
             ]
@@ -463,9 +511,7 @@ class Problems(commands.Cog, name="Problems Commands"):
             await ctx.send("You are not the creator of this problem!")
             return
         
-        categories: tuple = ("name", "type", "description", "solution")
-        
-        if category not in categories:
+        if category not in ("name", "type", "description", "solution"):
             await ctx.send("This category doesn't exists")
             return
         
@@ -511,18 +557,24 @@ class Solutions(commands.Cog, name="Solutions Commands"):
         
         problem: tuple[int]|None = db.simple_select_data("Problems", "total_solutions", f'WHERE id = {problem_id}', True)
         
-        if problem == None:
+        if not bool(problem):
             await ctx.send("This Problem Don't Exists!")
             return
         
+        id_solution = generate_id()
+        
+        while bool(db.simple_select_data("Solutions", "id", f'WHERE problem_id = {problem_id} AND id = {id_solution}', True)):
+            id_solution = generate_id()
+        
         db.simple_insert_data("Solutions", (
+            id_solution,
             problem_id,
             ctx.author.id,
             solution,
             datetime.datetime.now().date(),
             marshal.dumps({})
         ),
-        "problem_id, author_id, description, publish_date, users_votes"
+        "id, problem_id, author_id, description, publish_date, users_votes"
         )
         
         db.simple_update_data("Problems", f"total_solutions = total_solutions + 1", f'WHERE id = {problem_id}')
@@ -534,13 +586,13 @@ class Solutions(commands.Cog, name="Solutions Commands"):
         
         problem = db.simple_select_data("Problems", "name, id", f'WHERE id = {problem_id}', True)
         
-        if problem == None:
+        if not bool(problem):
             await ctx.send("The problem does not exist!")
             return
         
-        solution: tuple[str|int|dict]|None = db.simple_select_data("Solutions", "*", f'WHERE id = {solution_id if solution_id != None else -1} AND problem_id = {problem_id}', True) if solution_id != None else None
+        solution: tuple[str|int|dict]|None = db.simple_select_data("Solutions", "*", f'WHERE id = {solution_id} AND problem_id = {problem_id}', True) if bool(solution_id) else None
         
-        if solution == None:
+        if not bool(solution):
             all_solutions: list[tuple] = db.simple_select_data("Solutions", 
                 '''author_id, id, positive_votes+negative_votes,
                 CASE
@@ -592,12 +644,12 @@ class Solutions(commands.Cog, name="Solutions Commands"):
                 ),
                 (
                     "Votes:",
-                    solution[4]+solution[5],
+                    solution[6]+solution[7],
                     True
                 ),
                 (
                     "Positive Votes Percentaje:",
-                    f'{(solution[4]/(solution[4]+solution[5]))*100}%' if solution[4]+solution[5] > 0 else "0%",
+                    f'{(solution[6]/(solution[6]+solution[7]))*100}%' if solution[6]+solution[7] > 0 else "0%",
                     True
                 ),
                 (
@@ -608,7 +660,7 @@ class Solutions(commands.Cog, name="Solutions Commands"):
             ]
         )
         
-        users_votes: dict = marshal.loads(solution[6])
+        users_votes: dict = marshal.loads(solution[5])
         
         button_up: Button = Button(style=discord.ButtonStyle.green, emoji="✅", custom_id="more")
         button_down: Button = Button(style=discord.ButtonStyle.danger, emoji="✖", custom_id="less")
@@ -660,6 +712,17 @@ class Solutions(commands.Cog, name="Solutions Commands"):
         
         answer: discord.Message = await ctx.send(embed=message, view=views)
 
+#region CLUBS COG
+
+class Clubs(commands.Cog, name="Clubs Commands"):
+    
+    def __init__(self, bot):
+        self.bot = bot
+    
+    @commands.command(name="create-club", help="Create a club")
+    async def create_club_Command(self, ctx: discord.ApplicationContext, *, name: str):
+        pass
+
 #region CALCULATOR COG
 class Calculator(commands.Cog, name="Calculator Commands"):
     
@@ -668,15 +731,22 @@ class Calculator(commands.Cog, name="Calculator Commands"):
         
     @commands.command(name="calc", help="Does math calculations")
     async def calc_Command(self, ctx: discord.ApplicationContext, *, calculation: str):
-        round_number: False|int = False
-        custom_command_parameters: Pattern = r'--([a-zA-Z]):([\w\d]+)' # Parametros que tengan valores customizados
-        custom_command_parameters_no_value: Pattern = r'--([a-zA-Z])' #! Parametros con valores fijos. SIN USAR AUN
+        round_number: bool|int = False
+        send_file: bool = False
+        custom_command_parameters: Pattern = r'--([a-zA-Z]+):([\w\d]+)' # Parametros que tengan valores customizados
+        custom_command_parameters_no_value: Pattern = r'--([a-zA-Z]+)' #! Parametros con valores fijos. SIN USAR AUN
+        
+        if calculation.find("∞") >= 0:
+            await ctx.send("∞")
+            return
         
         def change_parameters(match: Match):
             param = match.group(1).lower() # Nombre del parametro
-            value = match.group(2) if isinstance(match.group(2), int) else match.group(2).lower() # Valor del parametro
             
-            params = ("length", "round")
+            if len(match.groups()) >= 2:
+                value = match.group(2) if match.group(2).isnumeric() else match.group(2).lower()
+            
+            params = ("length", "round", "file")
             
             if param not in params:
                 return ""
@@ -686,28 +756,36 @@ class Calculator(commands.Cog, name="Calculator Commands"):
                 return ""
             
             if param == "round":
+                nonlocal round_number
                 round_number = int(value)
+                return ""
+            
+            if param == "file":
+                nonlocal send_file
+                send_file = True
                 return ""
             
             return ""
         
         calculation: str = calculation.lower()
-                
+
         calculation: str = re.sub(custom_command_parameters, change_parameters, calculation)
+        calculation: str = re.sub(custom_command_parameters_no_value, change_parameters, calculation)
         
         calculation: str = calculation.replace("mod", "%")
-        
         calculation: str = calculation.replace("pi", str(math.pi))
         calculation: str = calculation.replace("e", str(math.e))
-        
-        if re.search(r'[a-zA-Z]', calculation) != None:
-            
-            calculation = re.sub(r'[a-zA-Z]+', "", calculation)
-            await creator.send(f"# WARNING \n\nSome user is doing something weird: \n**USER:** {ctx.author.name} \n**ID:** {ctx.author.id} \n**Guild:** {ctx.guild.name} \n**Guild ID:** {ctx.guild.id} \n**Message:** {ctx.message.content}") #Avisa al creador del bot que alguien está haciendo algo raro
-
         calculation: str = calculation.replace("^", "**")
+        calculation: str = calculation.replace("c", str(c))
+        calculation: str = calculation.replace("gn", str(G))
+        calculation: str = calculation.replace("g", str(g))
+        calculation: str = calculation.replace("h", str(h))
+        calculation: str = calculation.replace("a", str(alpha))
+        calculation: str = calculation.replace("k", str(k))
+        calculation: str = calculation.replace("pm", str(m_p))
+        calculation: str = calculation.replace("nm", str(m_n))
         
-        def calculate(num: str):
+        def calculate(num: str) -> str:
             
             parentesis_pattern: Pattern = r'\(([^()]*)\)'
             
@@ -717,25 +795,37 @@ class Calculator(commands.Cog, name="Calculator Commands"):
             while re.search(parentesis_pattern, num):
                 num: str = re.sub(parentesis_pattern, give_parentesis, num)
                 
+            infinity_number_pattern: Pattern = r'(-?\d+\.?\d*)\.\.\.(?:\{(.*?)\})?'
+            
+            def give_infinity_number(match: Match):
+                number = match.group(1)
+                limit = int(calculate(match.group(2))) if bool(match.group(2)) else 10**3
+                
+                number = number + number[-1] * limit    
+                
+                return str(number)
+            
+            num: str = re.sub(infinity_number_pattern, give_infinity_number, num)
+                
             reverse_absolute_pattern: Pattern = r'~(.*?)~'
             
             def give_reverse_absolute(match: Match):
-                return str(-(abs(int(calculate(match.group(1))))))
+                return str(-(abs(float(calculate(match.group(1))))))
             
             num: str = re.sub(reverse_absolute_pattern, give_reverse_absolute, num)
             
             absolute_pattern: Pattern = r'\|(.*?)\|'
             
             def give_absolute(match: Match):
-                return str(abs(int(calculate(match.group(1)))))
+                return str(abs(float(calculate(match.group(1)))))
             
             num: str = re.sub(absolute_pattern, give_absolute, num)
             
-            custom_root_pattern: Pattern = r'(\d*)\[(.*?)\]'
+            custom_root_pattern: Pattern = r'(\d*\.?\d*)\[(.*?)\]'
             
             def custom_root(match: Match):
-                indice: int = 2 if len(match.group(1)) == 0 else int(match.group(1)) # Si el tamaño del primer número es 0 entonces lo hara una raiz cuadrada
-                number: int = int(calculate(match.group(2)))
+                indice: int = 2 if not bool(match.group(1)) else float(match.group(1)) # Si el tamaño del primer número es 0 entonces lo hara una raiz cuadrada
+                number: int = float(calculate(match.group(2)))
                 
                 root = number ** (1 / indice)
                 
@@ -775,7 +865,7 @@ class Calculator(commands.Cog, name="Calculator Commands"):
             
             def give_factorial(match: Match):
                 number = int(match.group(1))
-                limit: int = int(match.group(2)) if match.group(2).isnumeric() else 0
+                limit: int = int(match.group(2)) if bool(match.group(2)) else 0
                 
                 if bool(limit):
                     divisors = 1
@@ -796,19 +886,46 @@ class Calculator(commands.Cog, name="Calculator Commands"):
             
             num = re.sub(join_pattern, join_numbers, num)
                 
-            return str(eval(num))
+            return str(Decimal(eval(num)))
         
-        calculation = calculate(calculation)
+        def replace_functions(match: Match):
+            func = match.group(1)
+            value = float(match.group(2))
+            
+            if func == "w":
+                return str(scipy.special.lambertw(value))
+            
+            if func == "log":
+                return str()
+            
+            return ""
         
-        calculation: Decimal|bool = Decimal(calculation) if isinstance(calculation, int|float) else calculation
+        calculation: str = re.sub(r'([a-zA-Z]{1,3})\((.*?)\)', replace_functions, calculation)
+        
+        if re.search(r'[a-zA-Z]', calculation) != None:
+            
+            calculation = re.sub(r'[a-zA-Z]+', "", calculation)
+        
+        calculation: Decimal = Decimal(calculate(calculation))
 
         if round_number != False:
-            pass
+            calculation: Decimal = calculation.quantize(Decimal('0.' + '0' * round_number), rounding=ROUND_HALF_UP)
             
         calculation = str(calculation)
         
-        if len(calculation) > 2000:
-            calculation = f'{calculation[:1997]}...'
+        if (send_file) | (len(calculation) > 2000):
+            
+            if len(calculation) > 4300:
+                await ctx.send("The number is too large!")
+                return
+            
+            with StringIO() as file:
+                file.write(calculation)
+                file.seek(0)
+                
+                await ctx.send(file=discord.File(file, "number.txt"))
+                
+            return
         
         await ctx.send(calculation)
 
@@ -922,11 +1039,13 @@ class General(commands.Cog, name="General Commands"):
 
 async def verify_user(ctx: discord.ApplicationContext):
     
-    if ctx.command.name in ["register", "help", "search", "see", "calc", "translate"]:
-        return
+    await isbot(ctx.author)
     
     if db.simple_select_data("banned_users", "user_id", f'WHERE user_id = {ctx.author.id}', True) != None:
         raise CommandInvokeError(BannedUser())
+    
+    if ctx.command.name in ["register", "help", "search", "see", "calc", "translate"]:
+        return
     
     if not bool(db.simple_select_data("Users", "id", f'WHERE id = {ctx.author.id}', True)):
         raise CommandInvokeError(NotRegistered())
@@ -972,6 +1091,6 @@ async def on_ready():
     
 @bot.event
 async def on_connect():
-    print(f"Totalmente conectado a discord")
+    print(f"Conectandose a discord")
 
 bot.run(TOKEN)

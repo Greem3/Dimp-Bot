@@ -16,6 +16,7 @@ def create_tables():
                 "name" : "Users",
                 "columns" : {
                     "id" : ID(auto_increment=False),
+                    "create_date" : (str,),
                     "verified_problems_published" : [int, 0],
                     "unverified_problems_published" : [int, 0],
                     "verified_problems_resolved" : [int, 0],
@@ -37,9 +38,11 @@ def create_tables():
                     "type" : (str,),
                     "publish_date" : (str,),
                     "total_solutions" : [int, 0],
-                    "difficulty" : [str, '"Not Verified"'],
-                    "solution" : [str, False],
-                    "verified" : [int, False]
+                    "difficulty" : [str, "Not Verified"],
+                    "solution" : str,
+                    "verified" : [int, False],
+                    "total_votes" : [int, 0],
+                    "users_votes" : (Blob,)
                 },
                 "fk" : {
                     "author_id" : ("Users", "id", True)
@@ -48,39 +51,45 @@ def create_tables():
             {
                 "name" : "Solutions",
                 "columns" : {
-                    "id" : ID(),
-                    "problem_id" : int,
-                    "author_id" : int,
+                    "id" : (int,),
+                    "problem_id" : (int,),
+                    "author_id" : (int,),
                     "description" : (str,),
-                    "publish_date" : (str,),
-                    "users_votes" : Blob,
-                    "positive_votes" : [int, 0],
-                    "negative_votes" : [int, 0]
+                    "publish_date" : (str,)
                 },
+                "composite" : ["id", "problem_id"],
                 "fk" : {
                     "problem_id" : ("Problems", "id", True),
                     "author_id" : ("Users", "id", True)
                 }
             },
             {
+                "name" : "Users-Problems"
+            },
+            {
+                "name" : "Users-Solutions",
+                "columns" : {
+                    "id" : ID(),
+                    "user_id" : (int,),
+                    "solution_id" : (int,),
+                    "vote" : (int,)
+                },
+                "fk" : {
+                    "user_id" : ("Users", "id", True),
+                    "solution_id" : ("Solutions", "id", True)
+                }
+            },
+            {
                 "name" : "cn_accounts",
                 "columns" : {
                     "user_id" : ID(auto_increment=False),
-                    "money" : (int,),
                     "achievements" : Blob,
-                    "games_played" : {
-                        "type" : int,
-                        "constraints" : "DEFAULT 0 NOT NULL"
-                    },
-                    "games_won" : {
-                        "type" : int,
-                        "constraints" : "DEFAULT 0 NOT NULL"
-                    },
+                    "created_date" : (str,),
+                    "money" : [int, 0],
+                    "games_played" : [int, 0],
+                    "games_won" : [int, 0],
                     "max_difficulty_played" : str,
-                    "max_round_played" : {
-                        "type" : int,
-                        "constraints" : "DEFAULT 0 NOT NULL"
-                    }
+                    "max_round_played" : [int, 0]
                 },
                 "fk" : {
                     "user_id" : ("Users", "id", True)
@@ -92,7 +101,7 @@ def create_tables():
                     "id" : ID(),
                     "user_id" : int,
                     "game_name" : [str, "cn"],
-                    "game_info" : Blob
+                    "game_info" : (Blob,)
                 },
                 "fk" : {
                     "user_id" : ("Users", "id", True)
@@ -114,7 +123,7 @@ def create_tables():
                 "name" : "administrators",
                 "columns" : {
                     "user_id" : ID(auto_increment=False),
-                    "agregate_date" : str,
+                    "agregate_date" : (str,),
                     "super_admin" : [int, 0]
                 },
                 "fk" : {
@@ -125,11 +134,27 @@ def create_tables():
                 "name" : "banned_users",
                 "columns" : {
                     "user_id" : ID(auto_increment=False),
-                    "ban_date" : str,
+                    "ban_date" : (str,),
                     "unban_date" : [str, None]
                 },
                 "fk" : {
                     "user_id" : ("Users", "id", True)
+                }
+            },
+            {
+                "name" : "clubs",
+                "columns" : {
+                    "id" : ID(),
+                    "name" : (str,),
+                    "description" : [str, "A new club"],
+                    "create_date" : (str,),
+                    "creator_id" : (int,),
+                    "joined_users" : [int, 0],
+                    "users" : (Blob,),
+                    "image" : Blob
+                },
+                "fk" : {
+                    "creator_id" : ("Users", "id", True)
                 }
             }
         ]
@@ -147,9 +172,9 @@ def SearchBy(table: str, columns: str, value: str|int, id_name_column_name: tupl
         return db.simple_select_data(table, columns, f'WHERE {id_name_column_name[1]} = "{value}"', True)
     
 def add_super_admin():
-    import datetime
+    from datetime import datetime
     db.simple_insert_data("administrators", (
         427319348831453186,
-        datetime.datetime.now().date(),
+        datetime.now().date(),
         True
     ))
