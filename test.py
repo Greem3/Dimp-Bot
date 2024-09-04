@@ -26,7 +26,7 @@ import sqlite3
 from NewSimpleSQL.SimpleSQLite import generate_id, Database
 from src.sql_scripts import db, SearchBy
 #   SERIALIZACION DE OBJETOS
-import marshal, pickle, json
+import marshal, pickle, json, yaml
 #   EXPRESIONES REGULARES
 import re
 from re import Pattern, Match
@@ -186,6 +186,7 @@ class Administrators(commands.Cog, name="Bot Administrator Commands"):
     def __init__(self, bot):
         self.bot: discord.Bot = bot
     
+    @staticmethod
     def verify_admin(self, user_id: int, to_author: bool = True):
         
         answer: tuple[int|bool]|None = db.simple_select_data("administrators", "user_id, super_admin", f'WHERE user_id = {user_id}', True)
@@ -199,11 +200,13 @@ class Administrators(commands.Cog, name="Bot Administrator Commands"):
         
         if not bool(self.verify_admin(user_id)[1]):
             raise NotSuperAdmin() if to_author else NotIsSuperAdmin()
-        
+    
+    @staticmethod
     def already_banned(self, user_id: int):
         if bool(db.simple_select_data("banned_users", 'user_id', f'WHERE user_id = {user_id}', True)):
             raise AlreadyBanned()
     
+    @staticmethod
     def already_admin(self, user_id: int):
         if bool(db.simple_select_data("administrators", "user_id", f'WHERE user_id = {user_id}', True)):
             raise AlreadyAdmin()
