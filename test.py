@@ -187,7 +187,7 @@ class Administrators(commands.Cog, name="Bot Administrator Commands"):
         self.bot: discord.Bot = bot
     
     @staticmethod
-    def verify_admin(self, user_id: int, to_author: bool = True):
+    def verify_admin(user_id: int, to_author: bool = True):
         
         answer: tuple[int|bool]|None = db.simple_select_data("administrators", "user_id, super_admin", f'WHERE user_id = {user_id}', True)
         
@@ -202,12 +202,12 @@ class Administrators(commands.Cog, name="Bot Administrator Commands"):
             raise NotSuperAdmin() if to_author else NotIsSuperAdmin()
     
     @staticmethod
-    def already_banned(self, user_id: int):
+    def already_banned(user_id: int):
         if bool(db.simple_select_data("banned_users", 'user_id', f'WHERE user_id = {user_id}', True)):
             raise AlreadyBanned()
     
     @staticmethod
-    def already_admin(self, user_id: int):
+    def already_admin(user_id: int):
         if bool(db.simple_select_data("administrators", "user_id", f'WHERE user_id = {user_id}', True)):
             raise AlreadyAdmin()
     
