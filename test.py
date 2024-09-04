@@ -47,12 +47,12 @@ import datetime, time, asyncio, string
 prefixes = 'd!'
 TOKEN = "MTI3NDUyNjM0NzczNzMwMTEyNA.Gz6OQZ.5XUeH-Omd0qef-20OMSdJkDjO1-Hf17sTNL7Tc"
 
-intents: discord.Intents = discord.Intents(messages=True, guilds=True)
-intents.presences = True
-intents.message_content = True
-intents.webhooks = True
-intents.bans = True
-intents.members = True
+# intents: discord.Intents = discord.Intents(messages=True, guilds=True, )
+# intents.presences = True
+# intents.message_content = True
+# intents.webhooks = True
+# intents.bans = True
+# intents.members = True
 
 bot: commands.Bot = commands.Bot(command_prefix=prefixes, intents=discord.Intents.all())
 
@@ -1025,7 +1025,7 @@ class General(commands.Cog, name="General Commands"):
             
             text_or_problem_id: tuple[str]|None = db.simple_select_data("Problems", "description", f'WHERE id = {text_or_problem_id}', True)
             
-            if text_or_problem_id == None:
+            if text_or_problem_id is None:
                 await ctx.send("This problem don't exists!")
                 return
             
