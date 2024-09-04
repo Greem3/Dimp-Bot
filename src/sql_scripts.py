@@ -168,8 +168,8 @@ def SearchBy(table: str, columns: str, value: str|int, id_name_column_name: tupl
     if value.isnumeric():
         value = int(value)
         return db.simple_select_data(table, columns, f'WHERE {id_name_column_name[0]} = {value}', True)
-    else:
-        return db.simple_select_data(table, columns, f'WHERE {id_name_column_name[1]} = "{value}"', True)
+    
+    return db.simple_select_data(table, columns, f'WHERE {id_name_column_name[1]} = "{value}"', True)
     
 def add_super_admin():
     from datetime import datetime

@@ -30,9 +30,9 @@ def verify_permissions(user_roles: list[discord.Role], custom_role_id: discord.R
             if i in user_roles:
                 return True
         
-        return commands.MissingPermissions([''])
-    else:
-        return True if custom_role_id in user_roles else commands.MissingPermissions([''])
+        raise commands.MissingPermissions()
+    
+    return True if custom_role_id in user_roles else commands.MissingPermissions([''])
 
 def toRole(server_roles: list[discord.Role], value: int|list[int]):
     

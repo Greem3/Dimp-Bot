@@ -83,7 +83,7 @@ async def create_view(items: dict[dict[str|int|bool]] = {}, timeout: int = 180, 
                     value=configs["select_options"].pop("value"),
                     emoji=configs["select_options"].pop("emoji"),
                     description=configs["select_options"].pop("description")
-                ) if configs.get("select_options") != None else None,
+                ) if configs.get("select_options") is not None else None,
                 channel_types=configs.pop("channel_types"),
                 disabled=configs.pop("disabled"),
                 row=configs.pop("row")

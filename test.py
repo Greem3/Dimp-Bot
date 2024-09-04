@@ -268,7 +268,7 @@ class Administrators(commands.Cog, name="Bot Administrator Commands"):
         db.simple_insert_data("banned_users", (
             user.id,
             today_date,
-            today_date + datetime.timedelta(days=unban_days) if unban_days != None else None
+            today_date + datetime.timedelta(days=unban_days) if unban_days is not None else None
         ))
         
         await ctx.send("User banned")
@@ -310,14 +310,14 @@ class User(commands.Cog, name="User Commands"):
         if what_see not in see_options:
             what_see = "profile"
         
-        user: discord.Member = ctx.author if user == None else user if isinstance(user, DUser|discord.Member) else await bot.fetch_user(user)
+        user: discord.Member = ctx.author if user is None else user if isinstance(user, DUser|discord.Member) else await bot.fetch_user(user)
         
         await isbot(user)
         
         if what_see in ("profile", "p"):
             user_info: tuple|None = db.simple_select_data("Users", "*", f'WHERE id = {user.id}', True)
             
-            if user_info != None:
+            if user_info is not None:
                 message = create_embed(
                     user.name,
                     user_info[2],
@@ -422,7 +422,7 @@ class Problems(commands.Cog, name="Problems Commands"):
     @commands.command(name="search", help="Search a problem")
     async def search_Command(self, ctx: discord.ApplicationContext, *, name_or_id: str|int|None = None):
         
-        if name_or_id == None:
+        if name_or_id is None:
             
             all_problems: list[tuple] = db.simple_select_data("Problems", "name, id, publish_date", f'ORDER BY publish_date DESC')
             
@@ -445,7 +445,7 @@ class Problems(commands.Cog, name="Problems Commands"):
         
         problem_data = SearchBy("Problems", "*", name_or_id)
         
-        if problem_data == None:
+        if problem_data is None:
             await ctx.send("This problem don't exist!")
             return
         
@@ -485,7 +485,7 @@ class Problems(commands.Cog, name="Problems Commands"):
                 ),
                 (
                     "Has Oficial Solution:",
-                    True if problem_data[8] != None else False,
+                    True if problem_data[8] is not None else False,
                     True
                 ),
                 (
@@ -503,7 +503,7 @@ class Problems(commands.Cog, name="Problems Commands"):
         
         problem_data = db.simple_select_data("Problems", "*", f'WHERE id = {problem_id}', True)
         
-        if problem_data == None:
+        if problem_data is None:
             await ctx.send("This problem don't exist!")
             return
         
@@ -902,13 +902,13 @@ class Calculator(commands.Cog, name="Calculator Commands"):
         
         calculation: str = re.sub(r'([a-zA-Z]{1,3})\((.*?)\)', replace_functions, calculation)
         
-        if re.search(r'[a-zA-Z]', calculation) != None:
+        if re.search(r'[a-zA-Z]', calculation) is not None:
             
             calculation = re.sub(r'[a-zA-Z]+', "", calculation)
         
         calculation: Decimal = Decimal(calculate(calculation))
 
-        if round_number != False:
+        if round_number is not False:
             calculation: Decimal = calculation.quantize(Decimal('0.' + '0' * round_number), rounding=ROUND_HALF_UP)
             
         calculation = str(calculation)
@@ -1041,7 +1041,7 @@ async def verify_user(ctx: discord.ApplicationContext):
     
     await isbot(ctx.author)
     
-    if db.simple_select_data("banned_users", "user_id", f'WHERE user_id = {ctx.author.id}', True) != None:
+    if db.simple_select_data("banned_users", "user_id", f'WHERE user_id = {ctx.author.id}', True) is not None:
         raise CommandInvokeError(BannedUser())
     
     if ctx.command.name in ["register", "help", "search", "see", "calc", "translate"]:
