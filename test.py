@@ -65,13 +65,13 @@ creator: discord.User = 427319348831453186
 #region EVENTS
 
 @bot.event
-async def on_command_error(ctx: discord.ApplicationContext, error: commands.CommandError):
+async def on_command_error(ctx: discord.ApplicationContext, error: commands.CommandError): # skipcq: PYL-W0106
     
     if isinstance(error, commands.errors.CommandNotFound):
         await ctx.send("This command does not exist, type d!help to know all the available commands")
         return
     
-    if isinstance(error, commands.MissingRequiredArgument): # skipcq: PYL-W0106
+    if isinstance(error, commands.MissingRequiredArgument):
         command_info: commands.Command = ctx.command
         
         command_args: list = []
