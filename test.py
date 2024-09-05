@@ -654,7 +654,7 @@ class Solutions(commands.Cog, name="Solutions Commands"):
                 ),
                 (
                     "Positive Votes Percentaje:",
-                    0, #f'{(solution[6]/(solution[6]+solution[7]))*100}%' if solution[6]+solution[7] > 0 else "0%",
+                    0,
                     True
                 ),
                 (
@@ -665,7 +665,7 @@ class Solutions(commands.Cog, name="Solutions Commands"):
             ]
         )
         
-        users_votes: dict = {}#marshal.loads(solution[5])
+        users_votes: dict = {}
         
         button_up: Button = Button(style=discord.ButtonStyle.green, emoji="✅", custom_id="more")
         button_down: Button = Button(style=discord.ButtonStyle.danger, emoji="✖", custom_id="less")
@@ -718,8 +718,8 @@ class Calculator(commands.Cog, name="Calculator Commands"):
     async def calc_Command(self, ctx: discord.ApplicationContext, *, calculation: str):
         round_number: bool|int = False
         send_file: bool = False
-        custom_command_parameters: Pattern = r'--([a-zA-Z]+):([\w\d]+)' # Parametros que tengan valores customizados
-        custom_command_parameters_no_value: Pattern = r'--([a-zA-Z]+)' #! Parametros con valores fijos. SIN USAR AUN
+        custom_command_parameters: Pattern = r'--([a-zA-Z]+):([\w\d]+)'
+        custom_command_parameters_no_value: Pattern = r'--([a-zA-Z]+)'
         
         if calculation.find("∞") >= 0:
             await ctx.send("∞")
