@@ -26,7 +26,7 @@ import sqlite3
 from NewSimpleSQL.SimpleSQLite import generate_id, Database
 from src.sql_scripts import db, SearchBy
 #   SERIALIZACION DE OBJETOS
-import marshal, pickle, json, yaml
+import pickle, json, yaml
 #   EXPRESIONES REGULARES
 import re
 from re import Pattern, Match
@@ -45,7 +45,8 @@ import datetime, time, asyncio, string
 #region BOT INFO
 
 prefixes = 'd!'
-TOKEN = "MTI3NDUyNjM0NzczNzMwMTEyNA.Gz6OQZ.5XUeH-Omd0qef-20OMSdJkDjO1-Hf17sTNL7Tc"
+with open('bot/TOKEN.token', 'r') as bottoken:
+    TOKEN = bottoken.read()
 
 # intents: discord.Intents = discord.Intents(messages=True, guilds=True, )
 # intents.presences = True
@@ -69,7 +70,7 @@ async def on_command_error(ctx: discord.ApplicationContext, error: commands.Comm
         await ctx.send("This command does not exist, type d!help to know all the available commands")
         return
     
-    if isinstance(error, commands.MissingRequiredArgument):
+    if isinstance(error, commands.MissingRequiredArgument): # skipcq: PYL-W0106
         command_info: commands.Command = ctx.command
         
         command_args: list = []
@@ -275,11 +276,18 @@ class Administrators(commands.Cog, name="Bot Administrator Commands"):
         ))
         
         await ctx.send("User banned")
+    
+    #TODO: Verify problems command, fix problem commands, delete problems commands
         
     @commands.command(name="verify-problem", help="Verify is a problem have an real solution")
     async def verify_problem_Command(self, ctx: discord.ApplicationContext, problem_id: int, *, difficulty: str):
          
         self.verify_admin(ctx.author.id)
+    
+    @commands.command(name="fix-problem", help="Change any problem")
+    async def fix_problem_Command(self, ctx: discord.ApplicationContext, problem_id: int, category: str, *, new_value: str):
+        
+        self.verify_admin(ctx.atuhor.id)
     
     @commands.command(name="delete-problem", help="Delete an unopropiated problem")
     async def delete_problem_Command(self, ctx: discord.ApplicationContext, problem_id: int, *, reason: str):
@@ -544,7 +552,7 @@ class Problems(commands.Cog, name="Problems Commands"):
         
         await ctx.send("Your problem has changed")
 
-#region SOLUTIONS COG
+#region SOLUTION COG
 
 class Solutions(commands.Cog, name="Solutions Commands"):
     
@@ -558,7 +566,7 @@ class Solutions(commands.Cog, name="Solutions Commands"):
             await ctx.send("The solution is too large")
             return
         
-        problem: tuple[int]|None = db.simple_select_data("Problems", "total_solutions", f'WHERE id = {problem_id}', True)
+        problem: tuple[int]|None = db.simple_select_data("Problems", "id", f'WHERE id = {problem_id}', True)
         
         if not bool(problem):
             await ctx.send("This Problem Don't Exists!")
@@ -574,13 +582,12 @@ class Solutions(commands.Cog, name="Solutions Commands"):
             problem_id,
             ctx.author.id,
             solution,
-            datetime.datetime.now().date(),
-            marshal.dumps({})
+            datetime.datetime.now().date()
         ),
-        "id, problem_id, author_id, description, publish_date, users_votes"
+        "id, problem_id, author_id, description, publish_date"
         )
         
-        db.simple_update_data("Problems", f"total_solutions = total_solutions + 1", f'WHERE id = {problem_id}')
+        #db.simple_update_data("Problems", f"total_solutions = total_solutions + 1", f'WHERE id = {problem_id}')
         
         await ctx.send("Your solution has been submitted!")
         
@@ -597,12 +604,8 @@ class Solutions(commands.Cog, name="Solutions Commands"):
         
         if not bool(solution):
             all_solutions: list[tuple] = db.simple_select_data("Solutions", 
-                '''author_id, id, positive_votes+negative_votes,
-                CASE
-                    WHEN (positive_votes - negative_votes) = 0 THEN 0
-                    ELSE positive_votes / (positive_votes - negative_votes)
-                END AS score''', 
-                f'WHERE problem_id = {problem[1]} \n ORDER BY score'
+                'author_id, id', 
+                f'WHERE problem_id = {problem[1]} ORDER BY publish_date DESC'
             )
             
             if len(all_solutions) == 0:
@@ -618,10 +621,10 @@ class Solutions(commands.Cog, name="Solutions Commands"):
                 
             for i in all_solutions:
                 message.add_field(name=f'Author: {(await bot.fetch_user(i[0])).name}', value=f'Solution ID: {i[1]}', inline=True)
-                message.add_field(name='Votes:', value=i[2], inline=True)
+                message.add_field(name='Votes:', value=0, inline=True)
                 message.add_field(
                     name='Positive Votes Percentaje:', 
-                    value=f'{i[3]}%', 
+                    value=f'0%', 
                     inline=True
                 )
                 message.add_field(name="\u200B", value="", inline=False)
@@ -647,12 +650,12 @@ class Solutions(commands.Cog, name="Solutions Commands"):
                 ),
                 (
                     "Votes:",
-                    solution[6]+solution[7],
+                    0,
                     True
                 ),
                 (
                     "Positive Votes Percentaje:",
-                    f'{(solution[6]/(solution[6]+solution[7]))*100}%' if solution[6]+solution[7] > 0 else "0%",
+                    0, #f'{(solution[6]/(solution[6]+solution[7]))*100}%' if solution[6]+solution[7] > 0 else "0%",
                     True
                 ),
                 (
@@ -663,7 +666,7 @@ class Solutions(commands.Cog, name="Solutions Commands"):
             ]
         )
         
-        users_votes: dict = marshal.loads(solution[5])
+        users_votes: dict = {}#marshal.loads(solution[5])
         
         button_up: Button = Button(style=discord.ButtonStyle.green, emoji="✅", custom_id="more")
         button_down: Button = Button(style=discord.ButtonStyle.danger, emoji="✖", custom_id="less")
@@ -675,34 +678,21 @@ class Solutions(commands.Cog, name="Solutions Commands"):
                 
                 if interaction.custom_id == "more":
                     users_votes[interaction.user.id] = "positive"
-                    db.custom_execute("UPDATE Solutions SET positive_votes = positive_votes + 1, users_votes = ? WHERE id = ? AND problem_id = ?", marshal.dumps(users_votes), solution_id, problem_id)
+                    #db.custom_execute("UPDATE Solutions SET positive_votes = positive_votes + 1, users_votes = ? WHERE id = ? AND problem_id = ?", marshal.dumps(users_votes), solution_id, problem_id)
                     
                 if interaction.custom_id == "less":
                     users_votes[interaction.user.id] = "negative"
-                    db.custom_execute("UPDATE Solutions SET negative_votes = negative_votes + 1, users_votes = ? WHERE id = ? AND problem_id = ?", marshal.dumps(users_votes), solution_id, problem_id)
+                    #db.custom_execute("UPDATE Solutions SET negative_votes = negative_votes + 1, users_votes = ? WHERE id = ? AND problem_id = ?", marshal.dumps(users_votes), solution_id, problem_id)
                     
-                new_values = db.simple_select_data("Solutions", f'positive_votes, negative_votes', f'WHERE id = {solution_id} AND problem_id = {problem_id}', True)
+                #new_values = db.simple_select_data("Solutions", f'positive_votes, negative_votes', f'WHERE id = {solution_id} AND problem_id = {problem_id}', True)
             
-                message.set_field_at(1, name="Votes:", value=new_values[0]+new_values[1])
-                message.set_field_at(2, name="Positive Votes Percentaje:", value=f'{(new_values[0]/(new_values[0] + new_values[1]))*100}%' if new_values[0]+new_values[1] > 0 else "0%")   
+                #message.set_field_at(1, name="Votes:", value=new_values[0]+new_values[1])
+                #message.set_field_at(2, name="Positive Votes Percentaje:", value=f'{(new_values[0]/(new_values[0] + new_values[1]))*100}%' if new_values[0]+new_values[1] > 0 else "0%")   
             else:
                 
                 if interaction.custom_id == "reset":
-                    positive, negative = 0, 0
-                    
-                    if users_votes[interaction.user.id] == "positive":
-                        positive += 1
-                    else:
-                        negative += 1
                         
                     users_votes.pop(interaction.user.id)
-                    
-                    db.custom_execute(f"UPDATE Solutions SET positive_votes = positive_votes - {positive}, negative_votes = negative_votes - {negative}, users_votes = ? WHERE id = ? AND problem_id = ?", marshal.dumps(users_votes), solution_id, problem_id)
-                    
-                    new_values = db.simple_select_data("Solutions", f'positive_votes, negative_votes', f'WHERE id = {solution_id} AND problem_id = {problem_id}', True)
-                    
-                    message.set_field_at(1, name="Votes:", value=new_values[0]+new_values[1])
-                    message.set_field_at(2, name="Positive Votes Percentaje:", value=f'{(new_values[0]/(new_values[0] + new_values[1]))*100}%' if new_values[0]+new_values[1] > 0 else "0%")
             
             await interaction.response.edit_message(embed=message)
         
@@ -788,7 +778,7 @@ class Calculator(commands.Cog, name="Calculator Commands"):
         calculation: str = calculation.replace("pm", str(m_p))
         calculation: str = calculation.replace("nm", str(m_n))
         
-        def calculate(num: str) -> str:
+        def calculate(num: str) -> str: # skipcq: PYL-W0123
             
             parentesis_pattern: Pattern = r'\(([^()]*)\)'
             

@@ -32,17 +32,16 @@ def create_tables():
                 "name" : "Problems",
                 "columns" : {
                     "id" : ID(),
-                    "author_id" : int,
+                    "author_id" : (int,),
                     "name" : (str,),
                     "description" : (str,),
                     "type" : (str,),
                     "publish_date" : (str,),
+                    "edited_date" : [str, None],
                     "total_solutions" : [int, 0],
-                    "difficulty" : [str, "Not Verified"],
-                    "solution" : str,
-                    "verified" : [int, False],
-                    "total_votes" : [int, 0],
-                    "users_votes" : (Blob,)
+                    "difficulty" : [str, None],
+                    "solution" : [str, None],
+                    "verified" : [int, False]
                 },
                 "fk" : {
                     "author_id" : ("Users", "id", True)
@@ -64,16 +63,26 @@ def create_tables():
                 }
             },
             {
-                "name" : "Users-Problems"
+                "name" : "Users_difficulty",
+                "columns" : {
+                    "user_id" : (int,),
+                    "problem_id" : (int,),
+                    "vote" : (int,) # Votan que dificultad es el problema
+                },
+                "composite" : ["user_id", "problem_id"],
+                "fk" : {
+                    "user_id" : ("Users", "id", True),
+                    "problem_id" : ("Problems", "id", True)
+                }
             },
             {
-                "name" : "Users-Solutions",
+                "name" : "Users_votes",
                 "columns" : {
-                    "id" : ID(),
                     "user_id" : (int,),
                     "solution_id" : (int,),
-                    "vote" : (int,)
+                    "vote" : (int,) # Votan si la solucion es valida o no
                 },
+                "composite" : ["user_id", "solution_id"],
                 "fk" : {
                     "user_id" : ("Users", "id", True),
                     "solution_id" : ("Solutions", "id", True)
@@ -99,7 +108,7 @@ def create_tables():
                 "name" : "games_saves",
                 "columns" : {
                     "id" : ID(),
-                    "user_id" : int,
+                    "user_id" : (int,),
                     "game_name" : [str, "cn"],
                     "game_info" : (Blob,)
                 },
