@@ -588,8 +588,6 @@ class Solutions(commands.Cog, name="Solutions Commands"):
         "id, problem_id, author_id, description, publish_date"
         )
         
-        #db.simple_update_data("Problems", f"total_solutions = total_solutions + 1", f'WHERE id = {problem_id}')
-        
         await ctx.send("Your solution has been submitted!")
         
     @commands.command(name="see", help="See a solution of a user")
@@ -679,16 +677,9 @@ class Solutions(commands.Cog, name="Solutions Commands"):
                 
                 if interaction.custom_id == "more":
                     users_votes[interaction.user.id] = "positive"
-                    #db.custom_execute("UPDATE Solutions SET positive_votes = positive_votes + 1, users_votes = ? WHERE id = ? AND problem_id = ?", marshal.dumps(users_votes), solution_id, problem_id)
                     
                 if interaction.custom_id == "less":
                     users_votes[interaction.user.id] = "negative"
-                    #db.custom_execute("UPDATE Solutions SET negative_votes = negative_votes + 1, users_votes = ? WHERE id = ? AND problem_id = ?", marshal.dumps(users_votes), solution_id, problem_id)
-                    
-                #new_values = db.simple_select_data("Solutions", f'positive_votes, negative_votes', f'WHERE id = {solution_id} AND problem_id = {problem_id}', True)
-            
-                #message.set_field_at(1, name="Votes:", value=new_values[0]+new_values[1])
-                #message.set_field_at(2, name="Positive Votes Percentaje:", value=f'{(new_values[0]/(new_values[0] + new_values[1]))*100}%' if new_values[0]+new_values[1] > 0 else "0%")   
             else:
                 
                 if interaction.custom_id == "reset":
