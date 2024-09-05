@@ -31,6 +31,7 @@ import pickle, json, yaml
 import re
 from re import Pattern, Match
 #   MATEMATICAS
+import ast
 import math, decimal, scipy
 from decimal import Decimal, getcontext, ROUND_HALF_UP
 from scipy.constants._constants import c, G, g, alpha, h, k, m_p, m_n
@@ -879,7 +880,7 @@ class Calculator(commands.Cog, name="Calculator Commands"):
             
             num = re.sub(join_pattern, join_numbers, num)
                 
-            return str(Decimal(eval(num)))
+            return str(Decimal(ast.literal_eval(num)))
         
         def replace_functions(match: Match):
             func = match.group(1)
