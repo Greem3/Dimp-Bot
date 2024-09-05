@@ -77,7 +77,7 @@ async def on_command_error(ctx: discord.ApplicationContext, error: commands.Comm
         command_args: list = []
         
         for name, param in command_info.clean_params.items():
-            command_args.append(f'<{name}>') if param.default == param.empty else command_args.append(f'[{name}]')
+            command_args.append(f'<{name}>') if param.default == param.empty else command_args.append(f'[{name}]') # skipcq: PYL-W0106
         
         await ctx.send(f"Use the command correctly by giving all the necessary arguments \n\nExample: `{prefixes}{command_info} {" ".join(command_args)}`")
         return
