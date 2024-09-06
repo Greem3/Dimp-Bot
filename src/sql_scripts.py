@@ -3,7 +3,7 @@ import sqlite3
 from sqlite3 import Blob
 import marshal
 
-db: Database = Database(sqlite3_connection=sqlite3.connect("Dimp_Data.db"))
+db: Database = Database(sqlite3_connection=sqlite3.connect("database/Dimp_Data.db"))
 
 def NewDatabase(db_url: str):
     db: Database = Database(sqlite3_connection=db_url)
@@ -16,6 +16,7 @@ def create_tables():
                 "name" : "Users",
                 "columns" : {
                     "id" : ID(auto_increment=False),
+                    "description" : [str, "Hello! I'm a new user"],
                     "create_date" : (str,),
                     "verified_problems_published" : [int, 0],
                     "unverified_problems_published" : [int, 0],
@@ -38,7 +39,6 @@ def create_tables():
                     "type" : (str,),
                     "publish_date" : (str,),
                     "edited_date" : [str, None],
-                    "total_solutions" : [int, 0],
                     "difficulty" : [str, None],
                     "solution" : [str, None],
                     "verified" : [int, False]
@@ -164,6 +164,18 @@ def create_tables():
                 },
                 "fk" : {
                     "creator_id" : ("Users", "id", True)
+                }
+            },
+            {
+                "name" : "tasks",
+                "columns" : {
+                    "id" : ID(),
+                    "club_id" : (int,),
+                    "author_id" : (int,),
+                    "name" : (str,),
+                    "description" : (str,),
+                    "created_date" : (str,),
+                    "end_date" : [str, None]
                 }
             }
         ]

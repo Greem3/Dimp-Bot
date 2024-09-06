@@ -332,14 +332,24 @@ class User(commands.Cog, name="User Commands"):
             if user_info is not None:
                 message = create_embed(
                     user.name,
-                    user_info[2],
+                    user_info[1],
                     discord.Colour.blue(),
                     None,
                     (f"User Id: {user.id}", None),
                     [
                         (
+                            "Account Created",
+                            user_info[2],
+                            True
+                        ),
+                        (
                             "Points",
                             user_info[7],
+                            True
+                        ),
+                        (
+                            "",
+                            "",
                             False
                         ),
                         (
@@ -353,9 +363,14 @@ class User(commands.Cog, name="User Commands"):
                             True
                         ),
                         (
+                            "",
+                            "",
+                            False
+                        ),
+                        (
                             "Verified Problems Resolved",
                             user_info[5],
-                            False
+                            True
                         ),
                         (
                             "Unverified Problems Resolved",
@@ -388,10 +403,10 @@ class User(commands.Cog, name="User Commands"):
             return
         
         try:
-            db.simple_update_data("Users", f'description = "{description}"', f"WHERE id = {ctx.author.id}")
+            db.simple_update_data("Users", f'description = {repr(description)}', f"WHERE id = {ctx.author.id}")
             await ctx.send("Your description has been changed!")
         except:
-            await ctx.send(f"You haven't created your bot account yet! \n \nUse the d!save-user command to be able to use this command.")
+            raise NotRegistered()
 
 #region PROBLEMS COG
 
@@ -623,7 +638,7 @@ class Solutions(commands.Cog, name="Solutions Commands"):
                 message.add_field(name='Votes:', value=0, inline=True)
                 message.add_field(
                     name='Positive Votes Percentaje:', 
-                    value=f'0%', 
+                    value=f'0%',
                     inline=True
                 )
                 message.add_field(name="\u200B", value="", inline=False)
@@ -1037,7 +1052,7 @@ async def verify_user(ctx: discord.ApplicationContext):
 
 def verify_unbans():
     
-    thread_db: Database = Database("Dimp_Data.db")
+    thread_db: Database = Database("database/Dimp_Data.db")
     
     while True:
         all_bans = thread_db.simple_select_data("banned_users", "*", f'WHERE unban_date IS NOT NULL')
