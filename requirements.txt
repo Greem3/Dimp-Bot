@@ -1,0 +1,10 @@
+# Principales
+pycord
+translate
+NewSimpleSQL
+scipy
+python-docx
+
+# Dependencias de otros
+numpy
+pillow

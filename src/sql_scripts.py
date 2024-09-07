@@ -13,7 +13,7 @@ def create_tables():
     db.complicated_create_tables(
         [
             {
-                "name" : "Users",
+                "name" : "users",
                 "columns" : {
                     "id" : ID(auto_increment=False),
                     "description" : [str, "Hello! I'm a new user"],
@@ -26,11 +26,12 @@ def create_tables():
                     "easy_problems_resolved" : [int, 0],
                     "medium_problems_resolved" : [int, 0],
                     "hard_problems_resolved" : [int, 0],
-                    "extreme_problems_resolved" : [int, 0]
+                    "extreme_problems_resolved" : [int, 0],
+                    "email" : str
                 }
             },
             {
-                "name" : "Problems",
+                "name" : "publications",
                 "columns" : {
                     "id" : ID(),
                     "author_id" : (int,),
@@ -39,16 +40,27 @@ def create_tables():
                     "type" : (str,),
                     "publish_date" : (str,),
                     "edited_date" : [str, None],
+                    "image" : [Blob, None],
+                    "file" : [Blob, None]
+                },
+                "fk" : {
+                    "author_id" : ("users", "id", True)
+                }
+            },
+            {
+                "name" : "problems",
+                "columns" : {
+                    "publication_id" : ID(auto_increment=False),
                     "difficulty" : [str, None],
                     "solution" : [str, None],
                     "verified" : [int, False]
                 },
                 "fk" : {
-                    "author_id" : ("Users", "id", True)
+                    "publication_id" : ("publications", "id", True)
                 }
             },
             {
-                "name" : "Solutions",
+                "name" : "solutions",
                 "columns" : {
                     "id" : (int,),
                     "problem_id" : (int,),
@@ -58,12 +70,12 @@ def create_tables():
                 },
                 "composite" : ["id", "problem_id"],
                 "fk" : {
-                    "problem_id" : ("Problems", "id", True),
-                    "author_id" : ("Users", "id", True)
+                    "problem_id" : ("problems", "id", True),
+                    "author_id" : ("users", "id", True)
                 }
             },
             {
-                "name" : "Users_difficulty",
+                "name" : "users_difficulty",
                 "columns" : {
                     "user_id" : (int,),
                     "problem_id" : (int,),
@@ -71,12 +83,12 @@ def create_tables():
                 },
                 "composite" : ["user_id", "problem_id"],
                 "fk" : {
-                    "user_id" : ("Users", "id", True),
-                    "problem_id" : ("Problems", "id", True)
+                    "user_id" : ("users", "id", True),
+                    "problem_id" : ("problems", "id", True)
                 }
             },
             {
-                "name" : "Users_votes",
+                "name" : "users_votes",
                 "columns" : {
                     "user_id" : (int,),
                     "solution_id" : (int,),
@@ -84,8 +96,8 @@ def create_tables():
                 },
                 "composite" : ["user_id", "solution_id"],
                 "fk" : {
-                    "user_id" : ("Users", "id", True),
-                    "solution_id" : ("Solutions", "id", True)
+                    "user_id" : ("users", "id", True),
+                    "solution_id" : ("solutions", "id", True)
                 }
             },
             {
@@ -101,7 +113,7 @@ def create_tables():
                     "max_round_played" : [int, 0]
                 },
                 "fk" : {
-                    "user_id" : ("Users", "id", True)
+                    "user_id" : ("users", "id", True)
                 }
             },
             {
@@ -113,7 +125,7 @@ def create_tables():
                     "game_info" : (Blob,)
                 },
                 "fk" : {
-                    "user_id" : ("Users", "id", True)
+                    "user_id" : ("users", "id", True)
                 }
             },
             {
@@ -125,7 +137,7 @@ def create_tables():
                     "correct_twenty_four" : [int, 0]
                 },
                 "fk" : {
-                    "user_id" : ("Users", "id", True)
+                    "user_id" : ("users", "id", True)
                 }
             },
             {
@@ -136,7 +148,7 @@ def create_tables():
                     "super_admin" : [int, 0]
                 },
                 "fk" : {
-                    "user_id" : ("Users", "id", True)
+                    "user_id" : ("users", "id", True)
                 }
             },
             {
@@ -147,7 +159,7 @@ def create_tables():
                     "unban_date" : [str, None]
                 },
                 "fk" : {
-                    "user_id" : ("Users", "id", True)
+                    "user_id" : ("users", "id", True)
                 }
             },
             {
@@ -163,19 +175,39 @@ def create_tables():
                     "image" : Blob
                 },
                 "fk" : {
-                    "creator_id" : ("Users", "id", True)
+                    "creator_id" : ("users", "id", True)
                 }
             },
             {
                 "name" : "tasks",
                 "columns" : {
-                    "id" : ID(),
+                    "publication_id" : ID(auto_increment=False),
                     "club_id" : (int,),
-                    "author_id" : (int,),
-                    "name" : (str,),
-                    "description" : (str,),
-                    "created_date" : (str,),
                     "end_date" : [str, None]
+                },
+                "fk" : {
+                    "publication_id" : ("publications", "id", True),
+                    "club_id" : ("clubs", "id", True)
+                }
+            },
+            {
+                "name" : "notification_types",
+                "columns" : {
+                    "id" : ID(),
+                    "name_type" : (str,)
+                }
+            },
+            {
+                "name" : "users_notifications",
+                "columns" : {
+                    "user_id" : (int,),
+                    "notification_id" : (int,),
+                    "email" : (int,)
+                },
+                "composite" : ["user_id", "notification_id"],
+                "fk" : {
+                    "user_id" : ("users", "id", True),
+                    "notification_id" : ("notification_types", "id", True)
                 }
             }
         ]

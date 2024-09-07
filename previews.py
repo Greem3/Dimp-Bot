@@ -5,15 +5,16 @@ from discord.ext import commands
 from discord.ext.commands import CommandInvokeError
 from discord.ui import Button, View, Select, InputText, Modal
 import docx.document
-import scipy.constants
-import scipy.constants._constants
-import scipy.linalg
-import scipy.special
 from src.discord_funcs.embed_funcs import create_embed
 from src.discord_funcs.view_funcs import create_view
 #   ARCHIVOS
 import io
 from io import StringIO, BytesIO
+#   EMAILS
+import smtplib
+import email
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 #   FUNCIONES
 from src.Exception_Classes.custom_exceptions import *
 from src.Dictionarys.dict_funcs import *
@@ -31,31 +32,32 @@ import pickle, json, yaml
 import re
 from re import Pattern, Match
 #   MATEMATICAS
-import ast
 import math, decimal, scipy
 from decimal import Decimal, getcontext, ROUND_HALF_UP
 from scipy.constants._constants import c, G, g, alpha, h, k, m_p, m_n
+import scipy.constants
+import scipy.constants._constants
+import scipy.linalg
+import scipy.special
 #   THREADS
 import threading
 from threading import Thread
 #   WEB
 #! import page.start_page
+#   VARIABLES DE ENTORNO
+import os
+from dotenv import load_dotenv
+#   ENCRIPTACION
+import cryptography
+from cryptography.fernet import Fernet
 #   EXTRA
 import datetime, time, asyncio, string
+
+load_dotenv()
 
 #region BOT INFO
 
 prefixes = 'd!'
-with open('bot/TOKEN.token', 'r') as bottoken:
-    TOKEN = bottoken.read()
-
-# intents: discord.Intents = discord.Intents(messages=True, guilds=True, )
-# intents.presences = True
-# intents.message_content = True
-# intents.webhooks = True
-# intents.bans = True
-# intents.members = True
-
 bot: commands.Bot = commands.Bot(command_prefix=prefixes, intents=discord.Intents.all())
 
 #region GLOBAL VARS
@@ -305,11 +307,15 @@ class User(commands.Cog, name="User Commands"):
     @commands.command(name="register", help="Save your user data")
     async def save_user_Command(self, ctx: discord.ApplicationContext):
         
-        db.simple_insert_data("Users", (
-            ctx.author.id,
-            datetime.datetime.now().date()
-        ), 
-        "id, create_date")
+        try:
+            db.simple_insert_data("Users", (
+                ctx.author.id,
+                datetime.datetime.now().date()
+            ), 
+            "id, create_date")
+        except ValueError:
+            await ctx.send("You have already an account created!")
+            return
         
         await ctx.send("Your data has been saved! You can now use all the bot's commands")
         
@@ -886,7 +892,7 @@ class Calculator(commands.Cog, name="Calculator Commands"):
             
             num = re.sub(join_pattern, join_numbers, num)
                 
-            return str(Decimal(ast.literal_eval(num)))
+            return str(Decimal(eval(num))) # skipcq
         
         def replace_functions(match: Match):
             func = match.group(1)
@@ -1093,4 +1099,5 @@ async def on_ready():
 async def on_connect():
     print(f"Conectandose a discord")
 
-bot.run(TOKEN)
+with open('bot/security.key', "rb") as file: 
+    bot.run(Fernet(file.read()).decrypt(os.getenv('BOT_TOKEN')).decode()) # skipcq
