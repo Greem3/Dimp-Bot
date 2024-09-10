@@ -8,3 +8,7 @@ python-docx
 # Dependencias de otros
 numpy
 pillow
+
+# Not used
+pyodbc
+pymssql
