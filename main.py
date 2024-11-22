@@ -10,7 +10,6 @@ import sqlite3, marshal
 #region BOT INFO
 
 prefixes = 'd!'
-TOKEN = "MTI3NDEwNzEyMDMyNDcxMDQyMA.G3ROm0.BXv5LVtjnQY4_Asoh5TU6h1D7G5OUCm8n1IrXU"
 
 intents: discord.Intents = discord.Intents(messages=True, guilds=True)
 intents.presences = True
